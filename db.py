@@ -1,6 +1,4 @@
 import sqlite3
-from curses.ascii import isdigit
-from os.path import isdir
 
 class DatabaseManager:
     def __init__(self, db_name='game_backlog.db'):
@@ -27,16 +25,58 @@ class DatabaseManager:
         query = """
             INSERT INTO games (title, rating, status) VALUES (?, ?, ?)
         """
-        values = (game.title, game.rating, game.status)
+        values = (game.title.title(), game.rating, game.status.title())
         self.cursor.execute(query, values)
         self.conn.commit()
+        print('Game added successfully.')
 
     def show_all(self):
-        query = "SELECT * FROM games"
+        query = "SELECT * FROM games ORDER BY title"
         self.cursor.execute(query)
         items = self.cursor.fetchall()
-        for game in items:
-            print(game)
+        for index, game in enumerate(items):
+            print(f'{index}- {game[1]:<30} | Rating: {game[2]:<6} | Status: {game[3]:<10}')
+
+    def delete_game(self, game_title):
+        game_query = "SELECT id, title FROM games WHERE title = (?) ORDER BY title LIMIT 1"
+        self.cursor.execute(game_query, (game_title.title(),))
+        game = self.cursor.fetchone()
+        if game:
+            game_id, title = game
+            delete_query = "DELETE FROM games WHERE id = (?)"
+            while True:
+                opt = input('Are you sure? [y/n] ')
+                should_continue = self.confirm_operation(opt.lower())
+                if should_continue == True:
+                    print('Invalid option.')
+                    continue
+                else:
+                    if opt == 'y':
+                        self.cursor.execute(delete_query, (game_id,))
+                        self.conn.commit()
+                        print(f'{title.capitalize()} was deleted successfully.')
+                        break
+                    else:
+                        print('Operation cancelled.')
+                        break
+        else:
+            print(f'No games found.')
+
+    def search_games(self, game_title):
+        query = "SELECT * FROM games WHERE title LIKE (?)"
+        self.cursor.execute(query, (game_title+'%',))
+        game_list = self.cursor.fetchall()
+        if game_list:
+            for index, game in enumerate(game_list):
+                print(f'{index}- {game[1]:<30} | Rating: {game[2]:<6} | Status: {game[3]:<10}')
+        else:
+            print('No games found.')
+
+    def confirm_operation(self, option):
+        if option not in ['y','n']:
+            return True
+        else:
+            return option
 
 
 # Games
@@ -65,4 +105,3 @@ def menu():
                 print('Please enter a valid option.')
         else:
             print('Invalid input. Please enter a number')
-
